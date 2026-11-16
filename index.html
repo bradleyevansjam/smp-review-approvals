@@ -1,0 +1,559 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>SMP Review Changes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Noto+Naskh+Arabic:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column of change cards; inside each, BEFORE | AFTER side by side (stacked on phones), approval bar at the foot */
+:root{
+  --bg:#f4f6f4; --surface:#ffffff; --fg:#16201b; --muted:#56645d; --line:#d6ddd8;
+  --accent:#1f5f45; --before:#a83a2b; --before-bg:#fbeeeb; --after:#1d6a45; --after-bg:#e8f4ed;
+  --wait:#7a5a00; --wait-bg:#fff5d6; --ok:#1d6a45; --ok-bg:#dff1e6; --slot:#eef1ef;
+  --f-head:"Space Grotesk",Inter,system-ui,sans-serif; --f-body:Inter,system-ui,-apple-system,"Segoe UI",sans-serif; --f-ar:"Noto Naskh Arabic","Segoe UI",Tahoma,serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1412; --surface:#171f1b; --fg:#e5ebe7; --muted:#9aa8a1; --line:#2b3631;
+  --accent:#7cc7a3; --before:#f2a293; --before-bg:#2b1915; --after:#8fd8b1; --after-bg:#13281e;
+  --wait:#f0cd6a; --wait-bg:#2b2410; --ok:#8fd8b1; --ok-bg:#163223; --slot:#1f2925; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1412; --surface:#171f1b; --fg:#e5ebe7; --muted:#9aa8a1; --line:#2b3631;
+  --accent:#7cc7a3; --before:#f2a293; --before-bg:#2b1915; --after:#8fd8b1; --after-bg:#13281e;
+  --wait:#f0cd6a; --wait-bg:#2b2410; --ok:#8fd8b1; --ok-bg:#163223; --slot:#1f2925; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--f-body)}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 72px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:26px}
+h1,h2,h3{font-family:var(--f-head);text-wrap:balance;margin:0;line-height:1.2}
+h1{font-size:30px} h2{font-size:23px} h3{font-size:17px}
+p{margin:0}
+.muted{color:var(--muted)}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{font-size:12px;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--muted)}
+.howto{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.howto{grid-template-columns:1fr}}
+.howto div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.howto b{display:block;font-family:var(--f-head)}
+.tally{font-family:var(--f-head);font-size:18px;font-variant-numeric:tabular-nums}
+.part{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:16px;scroll-margin-top:16px}
+.card.approved{border-color:var(--ok);box-shadow:0 0 0 2px var(--ok-bg)}
+.head{display:flex;flex-direction:column;gap:6px}
+.where{font-size:13px;color:var(--muted);letter-spacing:.02em}
+.quote{border-inline-start:3px solid var(--line);padding-inline-start:10px;color:var(--muted);font-style:italic}
+.what{background:var(--slot);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.what .k{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media (max-width:820px){.pair{grid-template-columns:1fr}}
+.side{border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.side.b{background:var(--before-bg)} .side.a{background:var(--after-bg)} .side.w{background:var(--wait-bg)}
+.lab{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.b .lab{color:var(--before)} .a .lab{color:var(--after)} .w .lab{color:var(--wait)}
+figure{margin:0;display:flex;flex-direction:column;gap:6px}
+figure img,figure video{display:block;width:100%;height:auto;border-radius:6px;border:1px solid var(--line);background:#000}
+figcaption{font-size:14px;line-height:1.5}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (max-width:520px){.grid2,.grid3{grid-template-columns:1fr}}
+.slot{border:2px dashed var(--wait);border-radius:8px;min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;padding:14px;color:var(--wait);font-size:13px;aspect-ratio:16/9;max-width:100%}
+.slot b{font-family:var(--f-head);font-size:14px}
+.ar{font-family:var(--f-ar);font-size:17px;line-height:1.8}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{text-align:start;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.t{font-variant-numeric:tabular-nums;white-space:nowrap}
+td.old{color:var(--before)} td.new{color:var(--after);font-weight:600}
+.approve{display:flex;flex-wrap:wrap;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:14px}
+.approve label{display:flex;align-items:center;gap:10px;font-weight:600;cursor:pointer}
+.approve input{width:22px;height:22px;accent-color:var(--ok);cursor:pointer}
+.approve input:disabled{cursor:not-allowed}
+.approve input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.status{font-size:13px;color:var(--muted)}
+.status.ok{color:var(--ok);font-weight:600}
+.opts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.opts{grid-template-columns:1fr}}
+.opt{border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.opt .approve{margin-top:auto}
+.opt.chosen{border-color:var(--ok);box-shadow:0 0 0 2px var(--ok-bg)}
+.rec{display:inline-block;font-family:var(--f-body);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ok);background:var(--ok-bg);border-radius:999px;padding:2px 8px;vertical-align:middle}
+.choice{background:var(--wait-bg);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.notice{font-size:13px;color:var(--muted)}
+.namebox{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-weight:600}
+.namebox input{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);min-width:220px;max-width:100%}
+.amend{display:flex;flex-direction:column;gap:8px}
+.amendbtn,.amendsend,.amendcancel{font:inherit;font-size:14px;border-radius:8px;padding:6px 12px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--fg);align-self:flex-start}
+.amendsend{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:600}
+.amendbtn:focus-visible,.amendsend:focus-visible,.amendcancel:focus-visible,.namebox input:focus-visible,.amend textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.amend textarea{font:inherit;width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);resize:vertical}
+.amendform{display:flex;flex-direction:column;gap:8px}
+.amendbar{display:flex;gap:8px;flex-wrap:wrap}
+.amendmsg{font-size:13px;color:var(--muted);margin:0}
+.amendmsg:empty{display:none}
+.amendlist{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.amendlist:empty{display:none}
+.amendlist small{color:var(--muted)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+code{font-size:13px;background:var(--slot);border-radius:4px;padding:0 4px}
+</style>
+
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:12px">
+    <div class="pills"><span class="pill">AFC27 · SMP lessons</span><span class="pill">Client's last comments</span><span class="pill">16 Nov 2026</span></div>
+    <h1>SMP review changes: before and after</h1>
+    <p class="muted" style="max-width:75ch">Each card is one client comment and what we changed for it. <b>Before</b> is the SCORM shipped on 15 Nov, which is what the client saw. <b>After</b> is today's fixed build. Both were recorded the same way, with the same clicks. Every Arabic line shown comes from the approved translation file; no new Arabic was written.</p>
+    <div class="howto">
+      <div><b>1. Watch or look</b>Press play on each video. The subtitles say what is happening and what changed.</div>
+      <div><b>2. Tick, or ask for an amendment</b>Tick the box under a card to approve that change. To change something instead, press "Ask for an amendment" under the box. Your name and the time are saved with each.</div>
+      <div><b>3. Media still to come</b>Part 2 holds the new pictures and clips. Today's version is shown as "before"; the "after" slot is filled in when the new media arrives.</div>
+    </div>
+    <p class="tally" id="tally" aria-live="polite">Approved: 0 of 7 ready changes</p>
+    <p class="notice" id="dbnote"></p>
+  </header>
+
+  <div class="part"><h2>Part 1 · Ready to approve now</h2><p class="muted">No new media needed. These are built and tested.</p></div>
+
+  <!-- 1 -->
+  <section class="card" data-item="41-markmoment" id="41-markmoment">
+    <div class="head"><p class="where">SMP 4.1 Communicating with crowds · Screen 4.2 "Mark the moment" (Majed and the megaphone)</p>
+      <h3>A missed moment is now shown at its own time, not at the end of the clip</h3>
+      <p class="quote">Client: "The marks on the video don't match the options beneath."</p></div>
+    <div class="what"><span class="k">What changed</span>
+      <p>The clip was right: mistake 1 (megaphone at a face) happens at 0:01–0:09. But when a learner did not spot it, the course pinned "Moment 1" at the <b>end of the clip, 0:24</b>, over a frame where the megaphone is lowered. Now a missed moment is pinned at <b>its own time (0:04)</b>, and the clip jumps back to it. No words changed. This fix applies to every lesson that has "Mark the moment".</p></div>
+    <div class="pair">
+      <div class="side b"><span class="lab">Before · shipped 15 Nov</span>
+        <figure><video controls preload="metadata" playsinline poster="ev/smp41-megaphone-before.png" src="ev/smp41-megaphone-before.mp4"></video>
+          <figcaption>At the end, "Moment 1" is pinned at <b>0:24</b> and the frame shows the megaphone <b>down</b>. The option says "aimed at a face". They don't match.</figcaption></figure></div>
+      <div class="side a"><span class="lab">After · fixed</span>
+        <figure><video controls preload="metadata" playsinline poster="ev/smp41-megaphone-after.png" src="ev/smp41-megaphone-after.mp4"></video>
+          <figcaption>"Moment 1" is pinned at <b>0:04</b>, and the frame shows the megaphone <b>at a face</b>. Mark and option match.</figcaption></figure></div>
+    </div>
+    <div class="approve"><label><input type="checkbox" class="tick"> Approve this change</label><span class="status">Not approved yet</span></div>
+  </section>
+
+  <!-- 2 -->
+  <section class="card" data-item="42-moodreader" id="42-moodreader">
+    <div class="head"><p class="where">SMP 4.2 Crowd psychology at football · Screen 5.1 "Mood reader" (Mark the moment)</p>
+      <h3>The five answer times now match the five scenes in the clip</h3>
+      <p class="quote">Client: "The marked action and option don't match."</p></div>
+    <div class="what"><span class="k">What changed</span>
+      <p>The answer windows crossed the clip's scene changes. "Sudden silence" started at 0:19.5, while the fans were still <b>cheering</b>. Each window now sits inside its own scene, and "Sudden silence" starts at <b>0:20.8</b>, when the cheering stops. No words changed.</p></div>
+    <div class="pair">
+      <div class="side b"><span class="lab">Before · shipped 15 Nov</span>
+        <figure><video controls preload="metadata" playsinline poster="ev/smp42-mood-reader-before.png" src="ev/smp42-mood-reader-before.mp4"></video>
+          <figcaption>Pressing Mark at <b>0:19</b>, during the cheering, asks about <b>"Sudden silence; heads turning"</b>. Action and option don't match.</figcaption></figure></div>
+      <div class="side a"><span class="lab">After · fixed</span>
+        <figure><video controls preload="metadata" playsinline poster="ev/smp42-mood-reader-after.png" src="ev/smp42-mood-reader-after.mp4"></video>
+          <figcaption>Mark at 0:19 now says <b>"Not yet"</b>. Mark at <b>0:22</b>, when the fans go still and turn their heads, asks "Sudden silence".</figcaption></figure></div>
+    </div>
+    <div class="tbl"><table>
+      <thead><tr><th>#</th><th>Right answer</th><th>Arabic (approved)</th><th>Before</th><th>After</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Smiles, singing in place</td><td class="ar" dir="rtl">ابتسامات، وغناء في الأماكن</td><td class="t old">1.5–6 s</td><td class="t new">0.3–5.75 s</td></tr>
+        <tr><td>2</td><td>Anger aimed at staff; no information</td><td class="ar" dir="rtl">غضب موجّه إلى الموظفين؛ لا معلومات</td><td class="t old">7.5–12 s</td><td class="t new">5.85–11.65 s</td></tr>
+        <tr><td>3</td><td>Groups forming and closing the gap</td><td class="ar" dir="rtl">مجموعات تتشكّل وتقلّص المسافة</td><td class="t old">13.5–18 s</td><td class="t new">11.75–17.9 s</td></tr>
+        <tr><td>4</td><td>Sudden silence; heads turning</td><td class="ar" dir="rtl">صمت مفاجئ؛ رؤوس تلتفت</td><td class="t old">19.5–24 s</td><td class="t new">20.8–24.3 s</td></tr>
+        <tr><td>5</td><td>Rumour spreading; people moving together</td><td class="ar" dir="rtl">شائعة تنتشر؛ أناس يتحركون معًا</td><td class="t old">25.5–30 s</td><td class="t new">24.4–30.0 s</td></tr>
+      </tbody></table></div>
+    <div class="approve"><label><input type="checkbox" class="tick"> Approve this change</label><span class="status">Not approved yet</span></div>
+  </section>
+
+  <!-- 3 -->
+  <section class="card" data-item="61-steps" id="61-steps">
+    <div class="head"><p class="where">SMP 6.1 Crowd safety matters · Screen 8.2 "How full is it?"</p>
+      <h3>Every step now shows a picture</h3>
+      <p class="quote">Client: "Many of those with no images or photos."</p></div>
+    <div class="what"><span class="k">What changed</span>
+      <p>The 8 "Picture N: what do you do?" steps had <b>no picture</b>; only the "how full?" steps did. Each "what do you do?" step now shows the same picture as its "how full?" step, so all 16 steps have one. No words changed. The 6 weak pictures themselves are being remade (Part 2).</p></div>
+    <div class="pair">
+      <div class="side b"><span class="lab">Before · shipped 15 Nov</span>
+        <figure><img src="ev/smp61-step2-before.png" alt="Step 2 'Picture 1: what do you do?' with no picture"><figcaption>Step 2, "Picture 1: what do you do?": <b>no picture</b>, text only.</figcaption></figure></div>
+      <div class="side a"><span class="lab">After · fixed</span>
+        <figure><img src="ev/smp61-step2-after.png" alt="Step 2 with the concourse picture"><figcaption>The same step now shows <b>picture 1</b> again, so the learner can see what they are deciding about.</figcaption></figure></div>
+    </div>
+    <div class="approve"><label><input type="checkbox" class="tick"> Approve this change</label><span class="status">Not approved yet</span></div>
+  </section>
+
+  <!-- 4 -->
+  <section class="card" data-item="92-remove" id="92-remove">
+    <div class="head"><p class="where">SMP 9.2 Conflict de-escalation · Screen 1.11 "Stop it before it starts"</p>
+      <h3>The weak video screen is removed; the next two screens already teach the same thing</h3>
+      <p class="quote">Client: "smp92-a-1-4 (this video name is useless"</p></div>
+    <div class="what"><span class="k">What changed</span>
+      <p>Video <code>smp92-a-1-4</code> is grey tiles with faint icons, one of them a <b>radio</b>. SMP lessons must show no radios. Its line under the video promises Noura at Gate 3, but she is not in it. Screen 1.13 teaches the same four PART steps, with the same Gate 3 example. So screen 1.11 is <b>removed</b>, and the lesson goes 1.10 → 1.12 → 1.13.</p></div>
+    <div class="pair">
+      <div class="side b"><span class="lab">Before · screen 1.11</span>
+        <div class="grid2">
+          <figure><img src="ev/smp92-1_11-clip-before-2.jpg" alt="Frame of the clip: grey tiles"><figcaption>The clip at 0:08: blank grey tiles.</figcaption></figure>
+          <figure><img src="ev/smp92-1_11-clip-before.jpg" alt="Frame of the clip: four tiles, the last with a radio"><figcaption>The clip at 0:29: faint icons; the last tile is a <b>radio</b>.</figcaption></figure>
+        </div>
+        <p class="ar" dir="rtl">انتبهوا للحروف الأربعة في PART، ولما تفعله نورة عند البوابة 3.</p>
+        <p style="font-size:14px">"Watch for the four letters of PART, and what Noura does at Gate 3." Noura is not in the clip.</p></div>
+      <div class="side a"><span class="lab">After · fixed</span>
+        <p><b>Screen 1.11 is gone.</b> The same teaching stays on:</p>
+        <ul style="margin:0;padding-inline-start:20px">
+          <li><b>1.12</b> callout: "People get angry when they don't know why."</li>
+          <li><b>1.13 "PART"</b>: four flip cards (Predict · Avoid · Reduce · Take action early) and the Gate 3 example.</li>
+        </ul>
+        <figure><img src="ev/smp92-card4-after.png" alt="Screen 1.13 card 4"><figcaption>Screen 1.13, which now follows 1.12 directly.</figcaption></figure></div>
+    </div>
+    <div class="choice">
+      <p><b>One choice:</b> the line <b>"The best conflict is the one that never starts"</b> (<span class="ar" dir="rtl">أفضل نزاع هو الذي لا يبدأ أبدًا</span>) was only in the removed voice-over. <b>Recommended:</b> keep it as the callout on screen 1.13, using its approved Arabic.</p>
+      <div class="approve" data-item="92-keepline" style="border:0;padding:0"><label><input type="checkbox" class="tick"> Keep the line on screen 1.13</label><span class="status">Not decided yet</span></div>
+    </div>
+    <div class="approve"><label><input type="checkbox" class="tick"> Approve this change</label><span class="status">Not approved yet</span></div>
+  </section>
+
+  <!-- 5 -->
+  <section class="card" data-item="92-icons" id="92-icons">
+    <div class="head"><p class="where">SMP 9.2 Conflict de-escalation · 7 screens</p>
+      <h3>Radio icons replaced by a speech balloon</h3>
+      <p class="quote">Our own check while fixing 9.2 (SMP rule: no radios shown).</p></div>
+    <div class="what"><span class="k">What changed</span>
+      <p>Only the small icon changes. The 7 radio icons beside "tell your supervisor" and "report" lines are now a <b>speech balloon</b>, on screens 0.6, 1.2, 1.13, 3.8, 6.4, 6.6 and 10.2. No words changed.</p></div>
+    <div class="pair">
+      <div class="side b"><span class="lab">Before · shipped 15 Nov</span>
+        <figure><img src="ev/smp92-card4-before.png" alt="Card 4 with a radio icon"><figcaption>Screen 1.13, card 4 "Take action early": a <b>radio</b> icon.</figcaption></figure></div>
+      <div class="side a"><span class="lab">After · fixed</span>
+        <figure><img src="ev/smp92-card4-after.png" alt="Card 4 with a speech balloon icon"><figcaption>The same card: a <b>speech balloon</b> icon.</figcaption></figure></div>
+    </div>
+    <div class="approve"><label><input type="checkbox" class="tick"> Approve this change</label><span class="status">Not approved yet</span></div>
+  </section>
+
+  <!-- 6 -->
+  <section class="card" data-item="121-mainpage" id="121-mainpage">
+    <div class="head"><p class="where">SMP 12.1 Special needs awareness &amp; assisting fans · Main page (Arabic), "What you'll be able to do"</p>
+      <h3>No more English on the Arabic main page</h3>
+      <p class="quote">Client: "There still is English text in the main page."</p></div>
+    <div class="what"><span class="k">What changed</span>
+      <p>Objective 1 was still the old English line ("…disability can be visible…"). It had no Arabic match, so it showed in English. It now uses the approved "special needs" line already on the lesson's objective card. The <b>browser tab title</b> also shows in Arabic now, in every lesson.</p></div>
+    <div class="pair">
+      <div class="side b"><span class="lab">Before · shipped 15 Nov</span>
+        <figure><img src="ev/smp121-main-page-before.png" alt="Arabic main page with objective 1 in English"><figcaption>First objective in <b>English</b>: "Recognise that disability can be visible or hidden…". Tab title: <b>SMP 12.1 - Disability Awareness &amp; Assisting Fans</b>.</figcaption></figure></div>
+      <div class="side a"><span class="lab">After · fixed</span>
+        <figure><img src="ev/smp121-main-page-after.png" alt="Arabic main page fully in Arabic"><figcaption>First objective in Arabic: <span class="ar" dir="rtl">تعرّفوا على أن الاحتياجات قد تكون ظاهرة أو غير ظاهرة، واستجيبوا لكل مشجع دون افتراضات مسبقة.</span> Tab title: <span class="ar" dir="rtl">الوعي بالاحتياجات الخاصة ومساعدة المشجعين</span></figcaption></figure></div>
+    </div>
+    <p class="notice">SMP 12.2's main page was checked the same way, with every section opened: no English left. The "CONFIDENTIAL – AFC2027…" line in the job aids shows in both languages on purpose. That is the client's own rule (Fayez/Owen).</p>
+    <div class="approve"><label><input type="checkbox" class="tick"> Approve this change</label><span class="status">Not approved yet</span></div>
+  </section>
+
+  <!-- 7 -->
+  <section class="card" data-item="21-passrule" id="21-passrule">
+    <div class="head"><p class="where">SMP 2.1 Your role, authority limits &amp; chain of command · Lesson check result</p>
+      <h3>The result screen now states the full pass rule</h3>
+      <p class="quote">Client: "First time I scored 4/5 but it wasn't a passing grade, now 4/5 was a passing grade? Is there any specific rule?"</p></div>
+    <div class="what"><span class="k">What changed</span>
+      <p><b>The answer:</b> yes. By the client's rule RL-8.2, <b>every question marked "Safety" must be right</b>. 4/5 fails when the wrong answer is a Safety question, and passes when it is not. That is why the same score failed once and passed later. The line under the score said only "4 of 5 needed". It now states the whole rule, using the approved Arabic line already on the test's start screen. This applies to every lesson test.</p></div>
+    <div class="pair">
+      <div class="side b"><span class="lab">Before · shipped 15 Nov</span>
+        <figure><img src="ev/smp21-result-before.png" alt="Result 4 of 5, Not yet, line says 4 of 5 needed"><figcaption>4/5 with a Safety question wrong: "Not yet". The line under the score says only <b>"4 of 5 needed"</b>, which looks like a pass.</figcaption></figure></div>
+      <div class="side a"><span class="lab">After · fixed</span>
+        <figure><img src="ev/smp21-result-after.png" alt="Result with the full Safety rule under the score"><figcaption>The same result. The line now says <b>"5 questions. Questions marked Safety must be answered correctly. Get at least 4 right to pass."</b></figcaption></figure></div>
+    </div>
+    <div class="approve"><label><input type="checkbox" class="tick"> Approve this change</label><span class="status">Not approved yet</span></div>
+  </section>
+
+  <!-- 8 -->
+  <section class="card" data-item="downloads" id="downloads">
+    <div class="head"><p class="where">All SMP lessons · Job aids (📎) inside the LMS</p>
+      <h3>Downloads in the LMS: three fixes that need no re-zipping</h3>
+      <p class="quote">Client: "Downloads. This is for all lessons &amp; modules. If this is an LMS issue, we will need to work on it to make sure it is fully functional."</p></div>
+    <div class="what"><span class="k">Why it fails</span>
+      <p>The LMS plays each lesson inside a <b>locked frame</b>. That frame blocks new tabs and file downloads unless the LMS allows them. The PDFs are in every zip, so the files are fine; the browser just won't let the lesson open them. All lessons are already on the LMS, so these three fixes are made <b>in the LMS admin</b>, with no new zips. Tick the one to go with.</p></div>
+    <div class="opts">
+      <div class="opt">
+        <h3>Option 1 · Launch the lessons in a new window <span class="rec">Recommended</span></h3>
+        <p>Most LMSs have a per-activity setting called "Display: new window / popup" or "Launch in separate window". In its own window the lesson isn't in the locked frame, so the PDF opens and downloads. It is one setting per activity, and some LMSs can change it in bulk. <b>Try it on one lesson first; if the download works, roll it out to all.</b></p>
+        <div class="approve" data-item="dl-opt1"><label><input type="checkbox" class="tick"> Go with option 1</label><span class="status">Not chosen</span></div>
+      </div>
+      <div class="opt">
+        <h3>Option 2 · Add each job-aid PDF to the LMS as its own file</h3>
+        <p>Put each lesson's PDF next to the lesson as an LMS file or resource. Learners download it straight from the LMS, so it always works, whatever the frame does. The PDFs come from the zips already made (the <code>aids/</code> folder in each). More clicks, but guaranteed. <b>Use this if the LMS can't launch in a new window.</b></p>
+        <div class="approve" data-item="dl-opt2"><label><input type="checkbox" class="tick"> Go with option 2</label><span class="status">Not chosen</span></div>
+      </div>
+      <div class="opt">
+        <h3>Option 3 · Ask the LMS admin or vendor to allow popups and downloads in the player frame</h3>
+        <p>The frame settings are called <code>allow-popups</code> and <code>allow-downloads</code>. If they switch them on, every lesson works at once. Many hosted LMSs don't allow this change.</p>
+        <div class="approve" data-item="dl-opt3"><label><input type="checkbox" class="tick"> Go with option 3</label><span class="status">Not chosen</span></div>
+      </div>
+    </div>
+    <p class="notice">To confirm the cause on the LMS: open a lesson, press F12, then tap Download. If the console shows "mozapp: the LMS frame blocked a new tab", that is the cause. Lessons zipped from now on also show a blocked PDF's pages inside the lesson, so the Job aids panel is never a dead end.</p>
+  </section>
+
+  <div class="part"><h2>Part 2 · New media: waiting for it to be made</h2><p class="muted">"Before" is what is in the lesson today. The "after" slots are filled in on this page when the new media arrives. Tick only once you can see the "after".</p></div>
+
+  <!-- B1 -->
+  <section class="card media" data-item="m-122-route" id="m-122-route">
+    <div class="head"><p class="where">SMP 12.2 Accessible routes · Screen 4.1 "The right route"</p>
+      <h3>Map video → two clear pictures (Faisal's route, Majed's route) and a re-recorded voice-over</h3>
+      <p class="quote">Client: "The highlights in the video don't sync with the VO. The Arabic word مرافق is pronounced wrong. The overall image is unclear… Suggest replacing with 2 images each for one of the 2 marshals in the lesson."</p></div>
+    <div class="what"><span class="k">What will change</span><p>The map video becomes <b>picture 1</b> (Faisal guides Abdullah's family to the lift) and <b>picture 2</b> (Majed sends them to a staircase). The voice-over is re-recorded with the same approved words. مرافق is read as <i>al-murāfiq</i> ("the companion"); the captions keep the approved spelling.</p></div>
+    <div class="pair">
+      <div class="side b"><span class="lab">Before · in the lesson today</span>
+        <figure><video controls preload="metadata" playsinline src="ev/smp122-v02-right-route.mp4"></video><figcaption>The current map video. The highlights don't line up with the voice-over, and مرافق is mispronounced in line 2.</figcaption></figure></div>
+      <div class="side w"><span class="lab">After · waiting for media</span>
+        <div class="grid2"><div class="slot"><b>Picture 1</b>Faisal at the lift with the family<br>(prompt item 1)</div><div class="slot"><b>Picture 2</b>Majed at the staircase<br>(prompt item 2)</div></div>
+        <div class="slot" style="aspect-ratio:auto;min-height:70px"><b>Voice-over</b>4 approved lines, voice Fahad (prompt item 3)</div></div>
+    </div>
+    <div class="approve"><label><input type="checkbox" class="tick" disabled> Approve when the "after" is in</label><span class="status">Waiting for media</span></div>
+  </section>
+
+  <!-- B2 -->
+  <section class="card media" data-item="m-41-round4" id="m-41-round4">
+    <div class="head"><p class="where">SMP 4.1 Communicating with crowds · Screen 5.1 "Which signal is this?", round 4</p>
+      <h3>Add the missing picture for "Marshal points with one finger and shrugs"</h3>
+      <p class="quote">Client: "Sign image here missing."</p></div>
+    <div class="what"><span class="k">What will change</span><p>Round 4 gets a picture of <b>Majed</b> pointing vaguely with one finger and shrugging. This is the wrong signal on purpose; the answer is "Not a standard signal".</p></div>
+    <div class="pair">
+      <div class="side b"><span class="lab">Before · client's screenshot</span>
+        <figure><img src="ev/smp41-round4-client-screenshot.jpg" alt="Round 4 with no picture"><figcaption>Round 4 shows <b>no picture</b>, only the text.</figcaption></figure></div>
+      <div class="side w"><span class="lab">After · waiting for media</span>
+        <div class="slot"><b>Picture</b>Majed points with one finger and shrugs<br>(prompt item 4)</div></div>
+    </div>
+    <div class="approve"><label><input type="checkbox" class="tick" disabled> Approve when the "after" is in</label><span class="status">Waiting for media</span></div>
+  </section>
+
+  <!-- B3 -->
+  <section class="card media" data-item="m-61-ibrox" id="m-61-ibrox">
+    <div class="head"><p class="where">SMP 6.1 Crowd safety matters · Screen 1.2 "Ibrox, Glasgow - 2 January 1971", steps 1, 2 and 4</p>
+      <h3>Replace the "Saudi crowd on a stairway" pictures with 1971 Glasgow pictures</h3>
+      <p class="quote">Client: "Glasgow and it shows again and again Saudi guys randomly moving."</p></div>
+    <div class="what"><span class="k">What will change</span><p>Steps 1 and 2 show <b>1971 Scottish football fans</b> on a steep stairway: crowding, then the fall, with nobody shown hurt. Step 4 shows our marshal <b>Faisal holding a calm queue at the top of a stairway</b>: the lesson. Step 3 (the memorial) stays.</p></div>
+    <div class="pair">
+      <div class="side b"><span class="lab">Before · in the lesson today</span>
+        <div class="grid3">
+          <figure><img src="ev/smp61-s41-ibrox-stairway.jpg" alt="Step 1 now"><figcaption>Step 1</figcaption></figure>
+          <figure><img src="ev/smp61-s42-ibrox-fall.jpg" alt="Step 2 now"><figcaption>Step 2</figcaption></figure>
+          <figure><img src="ev/smp61-s27-stairs-slow.jpg" alt="Step 4 now"><figcaption>Step 4</figcaption></figure>
+        </div><p style="font-size:14px">Rows of identical Saudi men in a sandstone stadium. Wrong for Glasgow 1971.</p></div>
+      <div class="side w"><span class="lab">After · waiting for media</span>
+        <div class="grid3"><div class="slot"><b>Step 1</b>1971 stairway<br>(item 5)</div><div class="slot"><b>Step 2</b>The fall<br>(item 6)</div><div class="slot"><b>Step 4</b>Held landing<br>(item 7)</div></div></div>
+    </div>
+    <div class="approve"><label><input type="checkbox" class="tick" disabled> Approve when the "after" is in</label><span class="status">Waiting for media</span></div>
+  </section>
+
+  <!-- B4 -->
+  <section class="card media" data-item="m-61-collapse" id="m-61-collapse">
+    <div class="head"><p class="where">SMP 6.1 Crowd safety matters · Screen 3.5 "Shockwaves and crowd collapse"</p>
+      <h3>Four "folded arms" stills → one 10-second clip, made like the client's reference</h3>
+      <p class="quote">Client: "They are folding hands and the video we rejected is now images and they don't actually make sense… we need something like this (ChatGPT made) 10 seconds."</p></div>
+    <div class="what"><span class="k">What will change</span><p>One <b>10 s clip</b> in four beats matching the four step texts: packed crowd, push wave, sway, collapse. Its look follows the client's own reference picture. The four step texts stay.</p></div>
+    <div class="pair">
+      <div class="side b"><span class="lab">Before · in the lesson today</span>
+        <div class="grid2">
+          <figure><img src="ev/smp61-s28-dense.jpg" alt="Step 1 now"><figcaption>1 · Dense</figcaption></figure>
+          <figure><img src="ev/smp61-s29-push-wave.jpg" alt="Step 2 now"><figcaption>2 · Push wave</figcaption></figure>
+          <figure><img src="ev/smp61-s30-sway.jpg" alt="Step 3 now"><figcaption>3 · Sway</figcaption></figure>
+          <figure><img src="ev/smp61-s31-collapse.jpg" alt="Step 4 now"><figcaption>4 · Collapse</figcaption></figure>
+        </div></div>
+      <div class="side w"><span class="lab">After · waiting for media</span>
+        <div class="slot"><b>10 s clip</b>Dense → push wave → sway → collapse<br>(prompt item 8)</div></div>
+    </div>
+    <div class="approve"><label><input type="checkbox" class="tick" disabled> Approve when the "after" is in</label><span class="status">Waiting for media</span></div>
+  </section>
+
+  <!-- B5 -->
+  <section class="card media" data-item="m-61-danger" id="m-61-danger">
+    <div class="head"><p class="where">SMP 6.1 Crowd safety matters · Screen 5.1 "Danger signs", page 2 "In a dense crowd"</p>
+      <h3>Same "folded arms" picture reused → a still from the new 10 s clip</h3>
+      <p class="quote">Client: "Used here also, same lesson."</p></div>
+    <div class="what"><span class="k">What will change</span><p>The tap-the-danger picture becomes the <b>fall moment from the new 10 s clip</b>, and the "Someone falling" tap area is moved onto it. No separate prompt is needed.</p></div>
+    <div class="pair">
+      <div class="side b"><span class="lab">Before · in the lesson today</span>
+        <figure><img src="ev/smp61-s31-collapse.jpg" alt="Page 2 picture now"><figcaption>The same picture as screen 3.5, step 4.</figcaption></figure></div>
+      <div class="side w"><span class="lab">After · waiting for media</span>
+        <div class="slot"><b>Still</b>from the new 10 s clip (about 8.5 s)</div></div>
+    </div>
+    <div class="approve"><label><input type="checkbox" class="tick" disabled> Approve when the "after" is in</label><span class="status">Waiting for media</span></div>
+  </section>
+
+  <!-- B6 -->
+  <section class="card media" data-item="m-61-density" id="m-61-density">
+    <div class="head"><p class="where">SMP 6.1 Crowd safety matters · Screen 8.2 "How full is it?", pictures 3 to 8</p>
+      <h3>Six near-empty pictures → pictures that show their real fullness</h3>
+      <p class="quote">Client: "Many of those with no images or photos."</p></div>
+    <div class="what"><span class="k">What will change</span><p>Each picture must show its level at a glance, because that is the whole task: kiosk queue <b>getting full</b>, stair top <b>at capacity</b>, metro path <b>busy</b>, gate push <b>at capacity</b>, toilet queue <b>getting full</b>, prayer room <b>busy</b>. Pictures 1 and 2 stay.</p></div>
+    <div class="pair">
+      <div class="side b"><span class="lab">Before · in the lesson today</span>
+        <div class="grid3">
+          <figure><img src="ev/smp61-s12-kiosk.jpg" alt=""><figcaption>3 · should be getting full</figcaption></figure>
+          <figure><img src="ev/smp61-s13-stair-top.jpg" alt=""><figcaption>4 · should be at capacity</figcaption></figure>
+          <figure><img src="ev/smp61-s14-last-mile.jpg" alt=""><figcaption>5 · should be busy</figcaption></figure>
+          <figure><img src="ev/smp61-s15-gate-push.jpg" alt=""><figcaption>6 · should be at capacity</figcaption></figure>
+          <figure><img src="ev/smp61-s16-toilet-corner.jpg" alt=""><figcaption>7 · should be getting full</figcaption></figure>
+          <figure><img src="ev/smp61-s17-prayer.jpg" alt=""><figcaption>8 · should be busy</figcaption></figure>
+        </div><p style="font-size:14px">Most show a few people far apart, nowhere near the level the answer says.</p></div>
+      <div class="side w"><span class="lab">After · waiting for media</span>
+        <div class="grid3">
+          <div class="slot"><b>3</b>Kiosk<br>(item 9)</div><div class="slot"><b>4</b>Stair top<br>(item 10)</div><div class="slot"><b>5</b>Metro path<br>(item 11)</div>
+          <div class="slot"><b>6</b>Gate push<br>(item 12)</div><div class="slot"><b>7</b>Toilet queue<br>(item 13)</div><div class="slot"><b>8</b>Prayer room<br>(item 14)</div>
+        </div></div>
+    </div>
+    <div class="approve"><label><input type="checkbox" class="tick" disabled> Approve when the "after" is in</label><span class="status">Waiting for media</span></div>
+  </section>
+
+  <!-- B7 -->
+  <section class="card media" data-item="m-102-signals" id="m-102-signals">
+    <div class="head"><p class="where">SMP 10.2 Evacuation, emergency signals &amp; exit gates · Screen 2.1 "Signals: stand-by and evacuate"</p>
+      <h3>Confusing video → three clear pictures under the same approved voice-over</h3>
+      <p class="quote">Client: "Please remove or fix the video, most of it doesn't make any sense."</p></div>
+    <div class="what"><span class="k">What will change</span><p>The voice-over stays exactly as approved. The pictures change: <b>stand-by</b> (Noura checks her closed gate), <b>evacuate</b> (gate open, fans leaving; this picture is already in the lesson), and <b>all clear</b> (Noura back at her post).</p></div>
+    <div class="pair">
+      <div class="side b"><span class="lab">Before · in the lesson today</span>
+        <figure><video controls preload="metadata" playsinline src="ev/smp102-v03-messages.mp4"></video><figcaption>A blurred panel over the stand, then three unrelated places and floating shapes.</figcaption></figure></div>
+      <div class="side w"><span class="lab">After · waiting for media</span>
+        <div class="grid3"><div class="slot"><b>Stand-by</b>Gate closed, Noura checks it<br>(item 15)</div><div class="slot"><b>Evacuate</b>Gate open, fans leaving<br>(existing picture)</div><div class="slot"><b>All clear</b>Noura back at post<br>(item 16)</div></div></div>
+    </div>
+    <div class="approve"><label><input type="checkbox" class="tick" disabled> Approve when the "after" is in</label><span class="status">Waiting for media</span></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  /* Two homes, one page. On claude.ai the ticks live in this page's own store (db). On the public link (GitHub) every tick and
+     amendment is a row in the team's review Google Sheet, tab "smp-review-approvals". */
+  var SHEET = "https://script.google.com/macros/s/AKfycbx5ytdUHl8PepmGOV02BoWL37g7uhVUnxN7YMKvlL85H3Ashe8Sx98be2LI5gApxkDK/exec", COURSE = "smp-review-approvals", READY = 7, NAMEKEY = "smp-approvals-name";
+  var rows = [].slice.call(document.querySelectorAll('.approve[data-item], .card[data-item] > .approve'));
+  var mode = 'local', db = null, user = null, writable = true, profiles = {};
+  var state = {}, amends = {};
+  var note = document.getElementById('dbnote');
+  function itemOf(row){ return row.getAttribute('data-item') || row.closest('.card').getAttribute('data-item'); }
+  function headOf(row){ var c=row.closest('.card'), h=c&&c.querySelector('h3'); return (h?h.textContent:'').slice(0,140); }
+  function whereOf(row){ var c=row.closest('.card'), w=c&&c.querySelector('.where'); return w?w.textContent:''; }
+  function fmt(iso){ try{ var d=new Date(iso); return d.toLocaleDateString(undefined,{day:'numeric',month:'short'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
+  function uid(){ return 'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+  function el(tag, cls, txt){ var e=document.createElement(tag); if(cls)e.className=cls; if(txt!=null)e.textContent=txt; return e; }
+  function nameOf(who){ if(!who) return 'Someone'; if(mode==='db') return (profiles[who]&&profiles[who].name)||'Someone'; return who; }
+
+  var nameBox = null;
+  function myName(){ return nameBox ? nameBox.value.trim() : ''; }
+  function askName(){
+    var wrap = el('div','namebox'); var lab = el('label',null,'Your name (saved with every tick and amendment):');
+    nameBox = el('input'); nameBox.id='revname'; nameBox.type='text'; nameBox.autocomplete='name'; nameBox.placeholder='Type your name';
+    try{ nameBox.value = localStorage.getItem(NAMEKEY)||''; }catch(e){}
+    nameBox.addEventListener('change',function(){ try{ localStorage.setItem(NAMEKEY,myName()); }catch(e){} });
+    lab.setAttribute('for','revname'); wrap.appendChild(lab); wrap.appendChild(nameBox);
+    document.getElementById('tally').insertAdjacentElement('beforebegin', wrap);
+  }
+  function needName(){ if(mode!=='sheet' || myName()) return false; note.textContent='Type your name at the top first, so the sheet records who approved.'; nameBox.focus(); return true; }
+
+  rows.forEach(function(row){
+    var id = itemOf(row), box = el('div','amend');
+    var btn = el('button','amendbtn','Ask for an amendment'); btn.type='button';
+    var form = el('div','amendform'); form.hidden = true;
+    var ta = el('textarea'); ta.rows=3; ta.id='am-'+id; ta.placeholder='What should change? Be as exact as you can.';
+    var lab = el('label','sr','Amendment for this item'); lab.setAttribute('for', ta.id);
+    var send = el('button','amendsend','Send amendment'); send.type='button';
+    var cancel = el('button','amendcancel','Cancel'); cancel.type='button';
+    var msg = el('p','amendmsg'); msg.setAttribute('aria-live','polite');
+    var list = el('ul','amendlist');
+    form.appendChild(lab); form.appendChild(ta); var bar=el('div','amendbar'); bar.appendChild(send); bar.appendChild(cancel); form.appendChild(bar);
+    box.appendChild(btn); box.appendChild(form); box.appendChild(msg); box.appendChild(list);
+    row.insertAdjacentElement('afterend', box);
+    row._amend = {list:list};
+    btn.addEventListener('click',function(){ form.hidden=false; btn.hidden=true; ta.focus(); });
+    cancel.addEventListener('click',function(){ form.hidden=true; btn.hidden=false; msg.textContent=''; });
+    send.addEventListener('click', async function(){
+      var t = ta.value.trim(); if(!t){ msg.textContent='Type the amendment first.'; ta.focus(); return; }
+      if(needName()) return;
+      send.disabled = true; msg.textContent='Sending...';
+      var ok = await save(row, 'Amendment', t);
+      send.disabled = false;
+      if(ok){ ta.value=''; form.hidden=true; btn.hidden=false; msg.textContent='Amendment sent.'; }
+      else msg.textContent='Not sent. Check your connection and try again.';
+    });
+  });
+
+  async function save(row, kind, text){
+    var id = itemOf(row), at = new Date().toISOString();
+    if(mode==='db'){
+      try{
+        var me = user ? await user.id() : null;
+        if(kind==='Amendment') await db.collection('amendments').add({item:id, text:text, by:me, at:at});
+        else await db.collection('approvals').doc(id).set({approved: kind==='Approved', by:me, at:at});
+        return true;
+      }catch(e){ note.textContent = (e && e.code==='invalid_argument') ? 'Your access to this page is view-only, so this could not be saved. Ask the owner for Contributor access.' : 'That could not be saved. Try again in a moment.'; return false; }
+    }
+    if(mode==='sheet'){
+      var c = {id:uid(), course:COURSE, screen:id, screen_no:'', lesson:whereOf(row), screen_type:'approval', heading:headOf(row),
+               language:'en', kind:kind, comment: text || (kind==='Approved' ? 'Approved' : 'Approval withdrawn'), reviewer:myName(), saved_at:at};
+      try{
+        var r = await fetch(SHEET,{method:'POST',body:JSON.stringify({action:'add',comment:c})}); var d = await r.json();
+        if(!d || !d.ok) throw 0;
+        apply([c]); render(); return true;
+      }catch(e){ return false; }
+    }
+    if(kind==='Amendment') (amends[id]=amends[id]||[]).push({text:text, who:'', at:at}); else state[id]={approved:kind==='Approved', who:'', at:at};
+    render(); return true;
+  }
+  function apply(list){
+    list.slice().sort(function(a,b){ return String(a.saved_at).localeCompare(String(b.saved_at)); }).forEach(function(c){
+      if(c.course && c.course!==COURSE) return;
+      if(c.kind==='Amendment') (amends[c.screen]=amends[c.screen]||[]).push({text:c.comment, who:c.reviewer, at:c.saved_at});
+      else if(c.kind==='Approved' || c.kind==='Withdrawn') state[c.screen]={approved:c.kind==='Approved', who:c.reviewer, at:c.saved_at};
+    });
+  }
+
+  rows.forEach(function(row){
+    var cb = row.querySelector('.tick');
+    cb.addEventListener('change', async function(){
+      if(needName()){ cb.checked = !cb.checked; return; }
+      var on = cb.checked; cb.disabled = true;
+      var ok = await save(row, on ? 'Approved' : 'Withdrawn', '');
+      if(!ok){ cb.checked = !on; if(mode==='sheet') note.textContent='Not saved. Check your connection and try again.'; }
+      cb.disabled = false; render();
+    });
+  });
+
+  async function render(){
+    if(mode==='db' && user){
+      var ids=[]; Object.keys(state).forEach(function(k){ if(state[k].who) ids.push(state[k].who); });
+      Object.keys(amends).forEach(function(k){ amends[k].forEach(function(a){ if(a.who) ids.push(a.who); }); });
+      if(ids.length){ try{ profiles = await user.profiles(ids); }catch(e){} }
+    }
+    var n = 0;
+    rows.forEach(function(row){
+      var id = itemOf(row), s = state[id], cb = row.querySelector('.tick'), st = row.querySelector('.status'), on = !!(s && s.approved);
+      var media = !!row.closest('.card.media');
+      cb.checked = on;
+      if(on){ st.textContent = (id==='92-keepline' ? 'Keep it: ' : id.indexOf('dl-opt')===0 ? 'Chosen by ' : 'Approved by ') + nameOf(s.who) + (s.at?' · '+fmt(s.at):''); st.className='status ok'; }
+      else { st.textContent = media ? 'Waiting for media' : (id==='92-keepline' ? 'Not decided yet' : id.indexOf('dl-opt')===0 ? 'Not chosen' : 'Not approved yet'); st.className='status'; }
+      if(!writable && !media) cb.disabled = true;
+      var card = row.closest('.card');
+      if(row.parentElement===card) card.classList.toggle('approved', on);
+      if(row.parentElement && row.parentElement.classList.contains('opt')) row.parentElement.classList.toggle('chosen', on);
+      if(on && !media && id!=='92-keepline' && id.indexOf('dl-opt')!==0) n++;
+      var ul = row._amend.list; ul.textContent='';
+      (amends[id]||[]).forEach(function(a){ var li=el('li'); li.appendChild(el('b',null,'Amendment: ')); li.appendChild(document.createTextNode(a.text)); li.appendChild(el('small',null,' · '+nameOf(a.who)+(a.at?' · '+fmt(a.at):''))); ul.appendChild(li); });
+    });
+    document.getElementById('tally').textContent = 'Approved: ' + n + ' of ' + READY + ' ready changes';
+  }
+  render();
+
+  (async function(){
+    var onClaude = !!(window.claude && window.claude.use);
+    if(onClaude){
+      db = await window.claude.use('db'); user = await window.claude.use('user');
+      if(!db){ note.textContent='Ticks can’t be saved in this view. Open the page from its claude.ai link while signed in.'; return; }
+      mode = 'db';
+      if(user){ var can = await user.can('data.write'); if(can===false){ writable=false; note.textContent='You can view approvals here; ticking needs Contributor access.'; } }
+      var loaded=false, timer=setTimeout(function(){ if(!loaded) note.textContent='Saved ticks can’t be reached yet.'; },10000);
+      db.collection('approvals').onSnapshot(function(snap){
+        state={}; snap.docs.forEach(function(d){ var v=d.data(); state[d.id]={approved:!!v.approved, who:v.by, at:v.at}; });
+        if(!snap.metadata.fromCache){ loaded=true; clearTimeout(timer); if(/yet/.test(note.textContent)) note.textContent=''; }
+        render();
+      }, function(){ clearTimeout(timer); note.textContent='Saved ticks can’t be loaded right now.'; });
+      db.collection('amendments').onSnapshot(function(snap){
+        amends={}; snap.docs.forEach(function(d){ var v=d.data(); (amends[v.item]=amends[v.item]||[]).push({text:v.text, who:v.by, at:v.at}); });
+        Object.keys(amends).forEach(function(k){ amends[k].sort(function(a,b){ return String(a.at).localeCompare(String(b.at)); }); });
+        render();
+      }, function(){});
+      return;
+    }
+    mode = 'sheet'; askName();
+    note.textContent = 'Loading saved approvals...';
+    try{
+      var r = await fetch(SHEET + (SHEET.indexOf('?')<0?'?':'&') + 'course=' + encodeURIComponent(COURSE) + '&t=' + Date.now(), {cache:'no-store'});
+      var d = await r.json(); if(!d || !d.ok) throw 0;
+      apply(d.comments || []); note.textContent = 'Every tick and amendment is saved to the team’s review sheet.'; render();
+    }catch(e){ note.textContent = 'The review sheet can’t be reached right now. Ticks will not be saved until it can.'; }
+  })();
+})();
+</script>
+
+</body></html>
